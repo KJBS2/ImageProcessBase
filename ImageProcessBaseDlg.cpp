@@ -20,6 +20,8 @@
 BITMAPINFO BmInfo;
 LPBYTE pImgBuffer;
 
+int Y0[307222], U[307222], Y1[307222], V[307222];
+
 
 // 응용 프로그램 정보에 사용되는 CAboutDlg 대화 상자입니다.
 
@@ -209,62 +211,35 @@ LRESULT CALLBACK CallbackOnFrame(HWND hWnd, LPVIDEOHDR lpVHdr)
 {
 
 	unsigned int uiBuflen = lpVHdr->dwBufferLength;
-	unsigned char RGB[485][645][3] = { 0, };
 	unsigned int nWidth, nHeight;
 	unsigned int i, j;
-	int Y0, U, Y1, V;
-
+	int YUVcnt = 0;
 	nWidth = 640;
 	nHeight = 480;
 
-
 	// YUY2 ---> RGB
+	YUVcnt = 0;
 	for (j = 0; j < nHeight; j++) { // height
 		for (i = 0; i < nWidth; i += 2) { //width
-			Y0 = lpVHdr->lpData[(nWidth*j + i) * 2];
-			U = lpVHdr->lpData[(nWidth*j + i) * 2 + 1];
-			Y1 = lpVHdr->lpData[(nWidth*j + i) * 2 + 2];
-			V = lpVHdr->lpData[(nWidth*j + i) * 2 + 3];
-
-			RGB[j][i][RED] = (int)CLIP(Y0 + (1.4075*(V - 128)));
-			RGB[j][i][GREEN] = (int)CLIP(Y0 - 0.3455*(U - 128) - 0.7169*(V - 128));
-			RGB[j][i][BLUE] = (int)CLIP(Y0 + 1.7790*(U - 128));
-			RGB[j][i + 1][RED] = (int)CLIP(Y1 + (1.4075*(V - 128)));
-			RGB[j][i + 1][GREEN] = (int)CLIP(Y1 - 0.3455*(U - 128) - 0.7169*(V - 128));
-			RGB[j][i + 1][BLUE] = (int)CLIP(Y1 + 1.7790*(U - 128));
+			Y0[YUVcnt] = lpVHdr->lpData[(nWidth*j + i) * 2];
+			U[YUVcnt] = lpVHdr->lpData[(nWidth*j + i) * 2 + 1];
+			Y1[YUVcnt] = lpVHdr->lpData[(nWidth*j + i) * 2 + 2];
+			V[YUVcnt++] = lpVHdr->lpData[(nWidth*j + i) * 2 + 3];
 		}
 	}
-
-/////////////////////////////////////////////////////////////////////////////////
-	// RGB영상처리부분
-
-	int gray;
-	for (j = 0; j < nHeight; j++) {
-		for (i = 0; i < nWidth; i++) {
-			gray = (RGB[j][i][RED] + RGB[j][i][BLUE] + RGB[j][i][GREEN]) / 3;
-			RGB[j][i][RED] = RGB[j][i][BLUE] = RGB[j][i][GREEN] = gray;
-		}
+	/////////////////////////////////////////////
+	for (i = 0; i < nHeight*nWidth; i++)
+	{
+		U[i] = V[i] = -128;
 	}
-
-
-
-//////////////////////////////////////////////////////////////////////////////////
-
-// RGB ---> YUY2 
-
+	//////////////////////////////////////
+	YUVcnt = 0;
 	for (j = 0; j < nHeight; j++) { // height
 		for (i = 0; i < nWidth; i += 2) { //width
-
-			Y0 = (int)CLIP(0.2999*RGB[j][i][RED] + 0.587*RGB[j][i][GREEN] + 0.114*RGB[j][i][BLUE]);
-			Y1 = (int)CLIP(0.2999*RGB[j][i + 1][RED] + 0.587*RGB[j][i + 1][GREEN] + 0.114*RGB[j][i + 1][BLUE]);
-			U = (int)CLIP(-0.1687*RGB[j][i][RED] - 0.3313*RGB[j][i][GREEN] + 0.5*RGB[j][i][BLUE] + 128.0);
-			V = (int)CLIP(0.5*RGB[j][i][RED] - 0.4187*RGB[j][i][GREEN] - 0.0813*RGB[j][i][BLUE] + 128.0);
-
-			lpVHdr->lpData[(nWidth*j + i) * 2] = Y0;
-			lpVHdr->lpData[(nWidth*j + i) * 2 + 1] = U;
-			lpVHdr->lpData[(nWidth*j + i) * 2 + 2] = Y1;
-			lpVHdr->lpData[(nWidth*j + i) * 2 + 3] = V;
-
+			lpVHdr->lpData[(nWidth*j + i) * 2] = Y0[YUVcnt];
+			lpVHdr->lpData[(nWidth*j + i) * 2 + 1] = U[YUVcnt];
+			lpVHdr->lpData[(nWidth*j + i) * 2 + 2] = Y1[YUVcnt];
+			lpVHdr->lpData[(nWidth*j + i) * 2 + 3] = V[YUVcnt++];
 		}
 	}
 	return (LRESULT)true;
